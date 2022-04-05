@@ -312,7 +312,7 @@ systemctl enable ospd-openvas
 
 # sic !
 
-cat << EOF > /etc/tmpfiles.d/gvm.conf 
+cat << EOF > /etc/tmpfiles.d/gvm.conf
 d /run/gvm 1755 gvm gvm
 L /run/gvmd - - - - /opt/gvm/var/run
 L /run/gsad - - - - /opt/gvm/var/run
