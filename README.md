@@ -3,9 +3,8 @@ How to install latest greenbone
 
 # as root (!)
 
-sudo locale-gen en_US.UTF-8 ;\\
+sudo locale-gen en_US.UTF-8 ;\
 export LC_ALL="C"
-
 
 # requirements
 
