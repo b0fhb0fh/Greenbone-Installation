@@ -6,6 +6,7 @@ How to install latest greenbone
 sudo locale-gen en_US.UTF-8 ;\\
 export LC_ALL="C"
 
+
 # requirements
 
 sudo apt update ;\
