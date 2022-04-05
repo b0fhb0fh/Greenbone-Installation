@@ -3,7 +3,10 @@
 # Greenbone-Installation
 # How to install latest greenbone
 
-# as root (!)
+# Don't run it all together. Run every stuff separately and under proper user
+
+
+# Run as root (!)
 
 sudo locale-gen en_US.UTF-8 ;\
 export LC_ALL="C"
@@ -27,7 +30,7 @@ echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/source
 sudo apt update ;\
 sudo apt -y install yarn
 
-# new user
+# create new unix user
 
 echo 'export PATH="$PATH:/opt/gvm/bin:/opt/gvm/sbin:/opt/gvm/.local/bin"' | sudo tee -a /etc/profile.d/gvm.sh ;\
 sudo chmod 0755 /etc/profile.d/gvm.sh ;\
@@ -43,13 +46,13 @@ sudo usermod -aG redis gvm  # This is for ospd-openvas can connect to redis.sock
 sudo chown gvm:gvm /opt/gvm/ ;\
 sudo su - gvm
 
-# as gvm (!)
+# Run as gvm (!)
 
 mkdir src ;\
 cd src ;\
 export PKG_CONFIG_PATH=/opt/gvm/lib/pkgconfig:$PKG_CONFIG_PATH
 
-# download stuff
+# download stuff (only main and stable)
 
 git clone -b main --single-branch https://github.com/greenbone/gvm-libs.git ;
 git clone -b main --single-branch https://github.com/greenbone/openvas-smb.git ;
@@ -60,7 +63,7 @@ git clone -b stable --single-branch https://github.com/greenbone/gvmd.git ;
 git clone -b stable --single-branch https://github.com/greenbone/gsad.git ;
 git clone -b stable --single-branch https://github.com/greenbone/gsa.git
 
-# gvm-libs
+# prepare gvm-libs
 
 cd gvm-libs ;\
  export PKG_CONFIG_PATH=/opt/gvm/lib/pkgconfig:$PKG_CONFIG_PATH ;\
@@ -72,7 +75,7 @@ cd gvm-libs ;\
  make install ;\
  cd /opt/gvm/src
  
-# openvas-smb
+# prepare openvas-smb
  
  cd openvas-smb ;\
  export PKG_CONFIG_PATH=/opt/gvm/lib/pkgconfig:$PKG_CONFIG_PATH ;\
@@ -83,7 +86,7 @@ cd gvm-libs ;\
  make install ;\
  cd /opt/gvm/src
  
-# scanner
+# prepare scanner
  
  cd openvas ;\
  export PKG_CONFIG_PATH=/opt/gvm/lib/pkgconfig:$PKG_CONFIG_PATH ;\
@@ -95,7 +98,7 @@ cd gvm-libs ;\
  make install ;\
  cd /opt/gvm/src
  
-# as root (!)
+# Run as root (!)
  
 export LC_ALL="C" ;\
 ldconfig ;\
@@ -131,16 +134,20 @@ systemctl restart redis-server
 
 visudo
 
+# add this stuff to sudoers
+
 Defaults        secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/gvm/sbin"
 ### Allow the user running ospd-openvas, to launch openvas with root permissions
 gvm ALL = NOPASSWD: /opt/gvm/sbin/openvas
 
-# as gvm (!)
+# Run as gvm (!)
+
+# update NVT feed
 
 greenbone-nvt-sync
 openvas -u
 
-# manager
+# prepare manager
 
 cd gvmd ;\
  export PKG_CONFIG_PATH=/opt/gvm/lib/pkgconfig:$PKG_CONFIG_PATH ;\
@@ -152,7 +159,7 @@ cd gvmd ;\
  make install ;\
  cd /opt/gvm/src
  
-# as postgres (!)
+# Run as postgres (!)
 
 sudo -u postgres bash
 export LC_ALL="C"
@@ -167,28 +174,31 @@ create extension "pgcrypto";
 exit
 exit
 
-# as gvm (!)
+# Run as gvm (!)
 
-# certificats
+# manage certificats. Use -f to renew old certs
 
 gvm-manage-certs -a
 
-# new user , Super Admin if you wish
+# create new greenbone user , "Super Admin" if you wish
 
-gvmd --create-user=admin --password=admin ( --role="Super Admin" )
+gvmd --create-user=admin --password=admin 
+gvmd --create-user=admin --password=admin --role="Super Admin"
+
+# black magic with user
 
 gvm@gvm2008-lab:/opt/gvm/src$ gvmd --get-users --verbose
 admin 41f853e4-fecf-423f-85b7-18fa3396bac5 ««« This uuid
 
 gvmd --modify-setting 78eceaec-3385-11ea-b237-28d24461215b --value 41f853e4-fecf-423f-85b7-18fa3396bac5
 
-# feeds
+# update all feeds
 
 greenbone-feed-sync --type GVMD_DATA
 greenbone-feed-sync --type SCAP
 greenbone-feed-sync --type CERT
 
-# gsad
+# prepare gsad
 
 cd gsad ;\
  export PKG_CONFIG_PATH=/opt/gvm/lib/pkgconfig:$PKG_CONFIG_PATH ;\
@@ -201,7 +211,7 @@ cd gsad ;\
  touch /opt/gvm/var/log/gvm/gsad.log ;\
  cd /opt/gvm/src
  
-# gsa
+# prepare gsa (web stuff)
 
 cd gsa ;\
  export PKG_CONFIG_PATH=/opt/gvm/lib/pkgconfig:$PKG_CONFIG_PATH ;\
@@ -210,7 +220,7 @@ cd gsa ;\
  cp -r build/* /opt/gvm/share/gvm/gsad/web/ ### probably as root
  cd /opt/gvm/src
 
-# ospd-openvas
+# prepare ospd-openvas
 
 cd /opt/gvm/src ;\
 export PKG_CONFIG_PATH=/opt/gvm/lib/pkgconfig:$PKG_CONFIG_PATH ;\
@@ -226,7 +236,7 @@ cd ospd-openvas ;\
 pip3 install . ;\ ### probably as root
 cd /opt/gvm/src
 
-# as root (!)
+# Run as root (!)
 
 cat << EOF > /etc/systemd/system/gvmd.service
 [Unit]
@@ -312,7 +322,7 @@ systemctl enable gvmd ;\
 systemctl enable gsad ;\
 systemctl enable ospd-openvas
 
-# sic !
+# sic (!)
 
 cat << EOF > /etc/tmpfiles.d/gvm.conf
 d /run/gvm 1755 gvm gvm
@@ -320,21 +330,21 @@ L /run/gvmd - - - - /opt/gvm/var/run
 L /run/gsad - - - - /opt/gvm/var/run
 EOF
 
-# start 
+# start daemons
 
 systemctl start ospd-openvas ;\
 systemctl start gvmd ;\
 systemctl start gsad
 
-# check
+# check status
 
 systemctl status gvmd
 systemctl status gsad
 systemctl status ospd-openvas
 
-# as gvm (!)
+# Run as gvm (!)
 
-# modify  scanner
+# modify  scanner (black magic again)
 
 gvmd --get-scanners
 08b69003-5fc2-4037-a479-93b440211c73  OpenVAS  /var/run/ospd/ospd.sock  0  OpenVAS Default «««««««««« THIS UUID
@@ -343,10 +353,9 @@ gvmd --get-scanners
 gvmd --modify-scanner=08b69003-5fc2-4037-a479-93b440211c73 --scanner-host=/opt/gvm/var/run/ospd.sock
 Scanner modified.
 
-# goto https://your_ip/
+# goto https://your_ip/ and 
 
-
-# update feeds
+# Put update feeds into cron
 
 nano /etc/crontab
 
@@ -357,3 +366,5 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 0 2 * * * gvm	greenbone-feed-sync --type GVMD_DATA
 0 3 * * * gvm	greenbone-feed-sync --type SCAP
 0 4 * * * gvm	greenbone-feed-sync --type CERT
+
+systemctl restart cron
